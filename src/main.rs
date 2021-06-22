@@ -1,10 +1,14 @@
-use actix_web::{App, HttpServer};
+use actix_web::{web::Data, App, HttpServer};
 
-mod database;
-mod domains;
+pub mod database;
+pub mod domains;
+pub mod error;
+pub mod jwt;
+
+pub type AppData = Data<AppState>;
 
 pub struct AppState {
-    pub database: database::ConnectionPool,
+    pub database: database::Pool,
 }
 
 #[actix_web::main]

@@ -1,14 +1,19 @@
-use r2d2::Pool;
-use r2d2_postgres::{postgres::NoTls, PostgresConnectionManager};
+use deadpool_postgres::Manager;
+use tokio_postgres::{Config, NoTls};
 
-pub type ConnectionPool = Pool<PostgresConnectionManager<r2d2_postgres::postgres::NoTls>>;
+pub type Pool = deadpool_postgres::Pool;
 
-pub fn pool() -> ConnectionPool {
-    let manager = PostgresConnectionManager::new(
-        "host=localhost port=5432 user=postgres password=postgres dbname=auth"
-            .parse()
-            .unwrap(),
-        NoTls,
-    );
-    Pool::new(manager).unwrap()
+pub type Client = deadpool_postgres::Client;
+
+pub type Row = tokio_postgres::Row;
+
+pub fn pool() -> Pool {
+    let mut config = Config::new();
+    config.host("localhost");
+    config.port(5432);
+    config.dbname("auth");
+    config.user("postgres");
+    config.password("postgres");
+    let manager = Manager::new(config, NoTls);
+    Pool::new(manager, 16)
 }

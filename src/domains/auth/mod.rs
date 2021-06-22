@@ -1,26 +1,48 @@
+use crate::{error::Error, AppState};
 use actix_web::{
     get, post, put,
-    web::{Data, ServiceConfig},
-    HttpResponse, Responder,
+    web::{Data, Json, ServiceConfig},
+    HttpResponse,
 };
 
-use super::super::AppState;
+use serde::Serialize;
+
+pub mod service;
+
+pub mod repository;
+
+use service::{login_user, register_user, Credentials};
+
+#[derive(Serialize)]
+pub struct AuthResponse {
+    user_id: i64,
+    session_token: String,
+}
 
 #[put("/")]
-async fn registration(_data: Data<AppState>) -> impl Responder {
-    let db_client = _data.as_ref().database.get().unwrap();
-
-    HttpResponse::Ok()
+pub async fn registration(
+    state: Data<AppState>,
+    body: Json<Credentials>,
+) -> Result<HttpResponse, Error> {
+    let (user, session) = register_user(state, body.into_inner()).await?;
+    Ok(HttpResponse::Ok().json(AuthResponse {
+        user_id: user.id,
+        session_token: session.token,
+    }))
 }
 
 #[post("/")]
-async fn login() -> impl Responder {
-    HttpResponse::Ok()
+pub async fn login(state: Data<AppState>, body: Json<Credentials>) -> Result<HttpResponse, Error> {
+    let (user, session) = login_user(state, body.into_inner()).await?;
+    Ok(HttpResponse::Ok().json(AuthResponse {
+        user_id: user.id,
+        session_token: session.token,
+    }))
 }
 
 #[get("/")]
-async fn refresh() -> impl Responder {
-    HttpResponse::Ok()
+pub async fn refresh() -> Result<HttpResponse, Error> {
+    Ok(HttpResponse::Ok().finish())
 }
 
 pub fn configure(config: &mut ServiceConfig) {
