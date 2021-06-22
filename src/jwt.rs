@@ -116,17 +116,26 @@ fn get_token(headers: &HeaderMap) -> Result<String, Error> {
 }
 
 #[allow(dead_code)]
-struct JsonWebToken<'a> {
+struct JsonWebToken {
     private_key: EncodingKey,
-    public_key: DecodingKey<'a>,
+    public_key: DecodingKey<'static>,
 }
 
 #[allow(dead_code)]
-impl JsonWebToken<'_> {
+impl JsonWebToken {
     pub fn from_secrets(private: &[u8], public: &[u8]) -> Self {
         JsonWebToken {
             private_key: EncodingKey::from_secret(private),
-            public_key: DecodingKey::from_secret(public),
+            public_key: DecodingKey::from_secret(public).into_static(),
+        }
+    }
+
+    pub fn from_pem_secrets(private: &[u8], public: &[u8]) -> Self {
+        JsonWebToken {
+            private_key: EncodingKey::from_rsa_pem(private).expect("valid pem private key"),
+            public_key: DecodingKey::from_rsa_pem(public)
+                .expect("valid pem public key")
+                .into_static(),
         }
     }
 
