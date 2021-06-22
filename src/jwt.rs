@@ -123,6 +123,13 @@ struct JsonWebToken<'a> {
 
 #[allow(dead_code)]
 impl JsonWebToken<'_> {
+    pub fn from_secrets(private: &[u8], public: &[u8]) -> Self {
+        JsonWebToken {
+            private_key: EncodingKey::from_secret(private),
+            public_key: DecodingKey::from_secret(public),
+        }
+    }
+
     pub fn decode_token(&self, token: &String) -> Result<TokenData<Claims>, Error> {
         decode::<Claims>(token, &self.public_key, &Validation::new(Algorithm::HS512))
             .map_err(|error| Error::InvalidTokenError(error))
@@ -165,6 +172,8 @@ fn encode_token(sub: &i64, roles: &Vec<String>) -> Result<String, Error> {
         roles: roles.to_owned(),
         exp: expiration as usize,
     };
+
+    let g = EncodingKey::from_secret(b"");
 
     encode(
         &Header::new(Algorithm::HS512),
