@@ -23,27 +23,27 @@ impl Session {
     }
 }
 
-pub async fn create_session(pool: &Pool, user_id: i64, token: String) -> Result<Session, Error> {
+pub async fn create_session(pool: &Pool, user_id: &i64, token: &String) -> Result<Session, Error> {
     let client = pool.get().await?;
     let row = &client
         .query(
             "INSERT INTO session (user_id, token)
             VALUES ($1, $2)
             RETURNING id, user_id, token, started_at, ended_at",
-            &[&user_id, &token],
+            &[user_id, token],
         )
         .await?[0];
     Ok(Session::from_row(row))
 }
 
-pub async fn find_active_session(pool: &Pool, user_id: i64) -> Result<Session, Error> {
+pub async fn find_active_session(pool: &Pool, user_id: &i64) -> Result<Session, Error> {
     let client = pool.get().await?;
     let rows = &client
         .query(
             "SELECT id, user_id, token, started_at, ended_at
             FROM session
             WHERE user_id = $1 AND ended_at = NULL",
-            &[&user_id],
+            &[user_id],
         )
         .await?;
     match rows.is_empty() {

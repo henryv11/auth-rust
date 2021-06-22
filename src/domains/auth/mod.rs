@@ -1,4 +1,4 @@
-use crate::{error::Error, AppState};
+use crate::{database::Pool, error::Error, jwt::Auth};
 use actix_web::{
     get, post, put,
     web::{Data, Json, ServiceConfig},
@@ -21,10 +21,10 @@ pub struct AuthResponse {
 
 #[put("/")]
 pub async fn registration(
-    state: Data<AppState>,
+    pool: Data<Pool>,
     body: Json<Credentials>,
 ) -> Result<HttpResponse, Error> {
-    let (user, session) = register_user(state, body.into_inner()).await?;
+    let (user, session) = register_user(&pool, &body).await?;
     Ok(HttpResponse::Ok().json(AuthResponse {
         user_id: user.id,
         session_token: session.token,
@@ -32,8 +32,8 @@ pub async fn registration(
 }
 
 #[post("/")]
-pub async fn login(state: Data<AppState>, body: Json<Credentials>) -> Result<HttpResponse, Error> {
-    let (user, session) = login_user(state, body.into_inner()).await?;
+pub async fn login(pool: Data<Pool>, body: Json<Credentials>) -> Result<HttpResponse, Error> {
+    let (user, session) = login_user(&pool, &body).await?;
     Ok(HttpResponse::Ok().json(AuthResponse {
         user_id: user.id,
         session_token: session.token,
@@ -41,7 +41,8 @@ pub async fn login(state: Data<AppState>, body: Json<Credentials>) -> Result<Htt
 }
 
 #[get("/")]
-pub async fn refresh() -> Result<HttpResponse, Error> {
+pub async fn refresh(auth: Auth) -> Result<HttpResponse, Error> {
+    auth.assert_is_logged_in()?;
     Ok(HttpResponse::Ok().finish())
 }
 

@@ -33,11 +33,15 @@ pub struct Claims {
     exp: usize,
 }
 
-pub struct Config {}
+pub struct Config {
+    jwt: JsonWebToken,
+}
 
 impl Default for Config {
     fn default() -> Self {
-        Config {}
+        Config {
+            jwt: JsonWebToken::from_secrets(b"", b""),
+        }
     }
 }
 
@@ -48,22 +52,22 @@ pub struct Auth {
 }
 
 impl Auth {
-    pub fn assert_is_logged_in(&self) -> Result<&Claims, &Error> {
+    pub fn assert_is_logged_in(&self) -> Result<&Claims, Error> {
         let Auth { claims, error, .. } = self;
         match claims {
             Some(claims) => Ok(claims),
             None => match error {
-                Some(error) => Err(error),
-                None => Err(&Error::UnknownError),
+                Some(error) => Err(*error),
+                None => Err(Error::UnknownError),
             },
         }
     }
 
-    pub fn assert_has_role(&self, role: &String) -> Result<(), &Error> {
+    pub fn assert_has_role(&self, role: &String) -> Result<(), Error> {
         let claims = self.assert_is_logged_in()?;
         match claims.roles.iter().find(|user_role| *user_role == role) {
             Some(_) => Ok(()),
-            None => Err(&Error::NotInRoleError),
+            None => Err(Error::NotInRoleError),
         }
     }
 }
@@ -74,6 +78,8 @@ impl FromRequest for Auth {
     type Config = Config;
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
+        let raw_token = get_token(req.headers());
+
         match get_token_data(req) {
             Ok(token_data) => ok(Auth {
                 claims: Some(token_data.claims),

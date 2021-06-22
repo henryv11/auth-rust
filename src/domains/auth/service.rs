@@ -1,4 +1,5 @@
 use crate::{
+    database::Pool,
     domains::{
         auth::repository::{create_user, find_user, User},
         session::{
@@ -7,7 +8,6 @@ use crate::{
         },
     },
     error::Error,
-    AppData,
 };
 
 use bcrypt::{hash, DEFAULT_COST};
@@ -19,23 +19,20 @@ pub struct Credentials {
     password: String,
 }
 
-pub async fn register_user(
-    data: AppData,
-    credentials: Credentials,
-) -> Result<(User, Session), Error> {
-    let encrypted_password = hash(credentials.password, DEFAULT_COST)?;
-    let user = create_user(&data.database, credentials.username, encrypted_password).await?;
-    let session = start_new_session(data, user.id).await?;
+pub async fn register_user(pool: &Pool, credentials: &Credentials) -> Result<(User, Session), Error> {
+    let encrypted_password = hash(credentials.password.clone(), DEFAULT_COST)?;
+    let user = create_user(pool, &credentials.username, &encrypted_password).await?;
+    let session = start_new_session(pool, &user.id).await?;
     Ok((user, session))
 }
 
-pub async fn login_user(data: AppData, credentials: Credentials) -> Result<(User, Session), Error> {
-    let encrypted_password = hash(credentials.password, DEFAULT_COST)?;
-    let user = match find_user(&data.database, credentials.username, encrypted_password).await {
+pub async fn login_user(pool: &Pool, credentials: &Credentials) -> Result<(User, Session), Error> {
+    let encrypted_password = hash(credentials.password.clone(), DEFAULT_COST)?;
+    let user = match find_user(pool, &credentials.username, &encrypted_password).await {
         Ok(user) => Ok(user),
         Err(Error::NotFoundError) => Err(Error::InvalidCredentialsError),
         Err(err) => Err(err),
     }?;
-    let session = get_active_or_start_new_session(data, user.id).await?;
+    let session = get_active_or_start_new_session(pool, &user.id).await?;
     Ok((user, session))
 }
