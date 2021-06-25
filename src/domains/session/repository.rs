@@ -2,13 +2,14 @@ use crate::{
     database::{Pool, Row},
     error::Error,
 };
+use chrono::{DateTime, Utc};
 
 pub struct Session {
     pub id: i64,
     pub user_id: i64,
     pub token: String,
-    pub started_at: String,
-    pub ended_at: Option<String>,
+    pub started_at: DateTime<Utc>,
+    pub ended_at: Option<DateTime<Utc>>,
 }
 
 impl Session {
@@ -42,8 +43,31 @@ pub async fn find_active_session(pool: &Pool, user_id: &i64) -> Result<Session, 
         .query(
             "SELECT id, user_id, token, started_at, ended_at
             FROM session
-            WHERE user_id = $1 AND ended_at = NULL",
+            WHERE user_id = $1 AND ended_at = NULL
+            LIMIT 1",
             &[user_id],
+        )
+        .await?;
+    match rows.is_empty() {
+        true => Err(Error::NotFoundError),
+        false => Ok(Session::from_row(&rows[0])),
+    }
+}
+
+pub async fn find_latest_session_by_token(
+    pool: &Pool,
+    token: &String,
+    user_id: &i64,
+) -> Result<Session, Error> {
+    let client = pool.get().await?;
+    let rows = &client
+        .query(
+            "SELECT id, user_id, token, started_at, ended_at
+            FROM session
+            WHERE token = $1 and user_id = $2
+            ORDER BY started_at DESC
+            LIMIT 1",
+            &[token, user_id],
         )
         .await?;
     match rows.is_empty() {

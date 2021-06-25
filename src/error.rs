@@ -1,4 +1,4 @@
-use crate::jwt::Error as JWTError;
+use crate::auth::Error as AuthError;
 use actix_web::error;
 use bcrypt::BcryptError;
 use deadpool_postgres::PoolError;
@@ -18,7 +18,9 @@ pub enum Error {
     #[error("Not found")]
     NotFoundError,
     #[error("Unauthorized")]
-    UnauthorizedError(JWTError),
+    UnauthorizedError(AuthError),
+    #[error("Internal server error")]
+    InternalServerError,
 }
 
 impl From<PoolError> for Error {
@@ -39,8 +41,8 @@ impl From<BcryptError> for Error {
     }
 }
 
-impl From<JWTError> for Error {
-    fn from(error: JWTError) -> Self {
+impl From<AuthError> for Error {
+    fn from(error: AuthError) -> Self {
         Self::UnauthorizedError(error)
     }
 }
