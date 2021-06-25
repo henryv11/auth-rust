@@ -69,6 +69,7 @@ const jwt_header: Header = Header {
     kid: Some("".to_owned()),
     ..Header::new(Algorithm::RS512)
 };
+
 const private_key: Result<EncodingKey, Error> =
     EncodingKey::from_rsa_pem(b"").map_err(|_| Error::InternalServerError);
 

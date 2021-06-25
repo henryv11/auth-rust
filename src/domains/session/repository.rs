@@ -4,6 +4,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 
+#[derive(Debug, Clone)]
 pub struct Session {
     pub id: i64,
     pub user_id: i64,
@@ -39,7 +40,7 @@ pub async fn create_session(pool: &Pool, user_id: &i64, token: &String) -> Resul
 
 pub async fn find_active_session(pool: &Pool, user_id: &i64) -> Result<Session, Error> {
     let client = pool.get().await?;
-    let rows = &client
+    let rows = client
         .query(
             "SELECT id, user_id, token, started_at, ended_at
             FROM session
@@ -60,7 +61,7 @@ pub async fn find_latest_session_by_token(
     user_id: &i64,
 ) -> Result<Session, Error> {
     let client = pool.get().await?;
-    let rows = &client
+    let rows = client
         .query(
             "SELECT id, user_id, token, started_at, ended_at
             FROM session
@@ -74,4 +75,22 @@ pub async fn find_latest_session_by_token(
         true => Err(Error::NotFoundError),
         false => Ok(Session::from_row(&rows[0])),
     }
+}
+
+pub async fn update_session_ended_at(
+    pool: &Pool,
+    session_id: &i64,
+    ended_at: &DateTime<Utc>,
+) -> Result<Session, Error> {
+    let client = pool.get().await?;
+    let row = &client
+        .query(
+            "UPDATE session
+            SET ended_at = $1
+            WHERE id = $2
+            RETURNING id, user_id, token, started_at, ended_at",
+            &[ended_at, session_id],
+        )
+        .await?[0];
+    Ok(Session::from_row(row))
 }

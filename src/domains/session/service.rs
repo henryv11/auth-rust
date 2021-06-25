@@ -1,10 +1,12 @@
 use crate::{
     database::Pool,
     domains::session::repository::{
-        create_session, find_active_session, find_latest_session_by_token, Session,
+        create_session, find_active_session, find_latest_session_by_token, update_session_ended_at,
+        Session,
     },
     error::Error,
 };
+use chrono::prelude::Utc;
 
 fn generate_session_token() -> String {
     String::new()
@@ -19,43 +21,34 @@ pub async fn start_new_session(
         Some(token) => token,
         None => generate_session_token(),
     };
-    let session = create_session(pool, user_id, &token).await?;
-    Ok(session)
+    create_session(pool, user_id, &token).await
 }
 
 pub async fn get_active_or_start_new_session(pool: &Pool, user_id: &i64) -> Result<Session, Error> {
-    let session = match find_active_session(pool, user_id).await {
-        Ok(session) => Ok(session),
+    match find_active_session(pool, user_id).await {
+        Ok(session) => get_unexpired_session(pool, session).await,
         Err(Error::NotFoundError) => start_new_session(pool, user_id, None).await,
-        Err(error) => Err(error),
-    }?;
-    Ok(session)
+        error => error,
+    }
 }
 
 pub async fn get_session_from_token(
     pool: &Pool,
-    session_token: &String,
+    token: &String,
     user_id: &i64,
 ) -> Result<Session, Error> {
-    let session = match find_latest_session_by_token(pool, session_token, user_id).await {
-        Ok(session) => Ok(session),
-        Err(error) => Err(error),
-    }?;
-
-    Ok(session)
+    match find_latest_session_by_token(pool, token, user_id).await {
+        Ok(session) => get_unexpired_session(pool, session).await,
+        Err(Error::NotFoundError) => Err(Error::InvalidCredentialsError),
+        error => error,
+    }
 }
 
-use chrono::prelude::Utc;
-
-async fn get_unexpired_session(pool: &Pool, session: &Session) {
-    let diff = Utc::now().timestamp() - session.started_at.timestamp();
-
-    // match session.started_at {}
+async fn get_unexpired_session(pool: &Pool, session: Session) -> Result<Session, Error> {
+    if Utc::now().timestamp() - session.started_at.timestamp() >= 10 {
+        update_session_ended_at(pool, &session.id, &Utc::now()).await?;
+        start_new_session(pool, &session.user_id, Some(session.token)).await
+    } else {
+        Ok(session)
+    }
 }
-
-// async fn shit(pool: &Pool, session: &Session) -> Result<Session, Error> {
-
-//     if session.ended_at
-
-//     Ok(session)
-// }
