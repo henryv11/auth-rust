@@ -7,7 +7,7 @@ pub type Client = deadpool_postgres::Client;
 
 pub type Row = tokio_postgres::Row;
 
-pub fn pool() -> Pool {
+pub fn get_pool() -> Pool {
     let mut config = Config::new();
     config.host("localhost");
     config.port(5432);

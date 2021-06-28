@@ -28,15 +28,15 @@ pub async fn create_user(pool: &Pool, username: &String, password: &String) -> R
     let row = &client
         .query(
             "INSERT INTO auth_user (username, password)
-            VALUES ($1, $2)
-            RETURNING id, username, created_at",
+                      VALUES ($1, $2)
+                      RETURNING id, username, created_at",
             &[username, password],
         )
         .await?[0];
     Ok(User::from_row(row))
 }
 
-pub async fn find_user_by_username_and_password(
+pub async fn find_user_by_credentials(
     pool: &Pool,
     username: &String,
     password: &String,
@@ -45,15 +45,15 @@ pub async fn find_user_by_username_and_password(
     let rows = client
         .query(
             "SELECT id, username, created_at
-            FROM auth_user
-            WHERE username = $1 AND password = $2",
+                      FROM auth_user
+                      WHERE username = $1 AND password = $2",
             &[username, password],
         )
         .await?;
-
-    match rows.is_empty() {
-        true => Err(Error::NotFoundError),
-        false => Ok(User::from_row(&rows[0])),
+    if rows.is_empty() {
+        Err(Error::NotFound)
+    } else {
+        Ok(User::from_row(&rows[0]))
     }
 }
 
@@ -62,13 +62,14 @@ pub async fn find_user_by_id(pool: &Pool, id: &i64) -> Result<User, Error> {
     let rows = client
         .query(
             "SELECT id, username, created_at
-            FROM auth_user
-            WHERE id = $1",
+                      FROM auth_user
+                      WHERE id = $1",
             &[id],
         )
         .await?;
-    match rows.is_empty() {
-        true => Err(Error::NotFoundError),
-        false => Ok(User::from_row(&rows[0])),
+    if rows.is_empty() {
+        Err(Error::NotFound)
+    } else {
+        Ok(User::from_row(&rows[0]))
     }
 }

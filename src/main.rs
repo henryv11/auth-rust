@@ -4,12 +4,13 @@ pub mod auth;
 pub mod database;
 pub mod domains;
 pub mod error;
+pub mod request_data;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
-            .data(database::pool())
+            .data(database::get_pool())
             // .data(jwt::JsonWebToken::from_secrets(b"", b""))
             .configure(domains::configure)
     })

@@ -1,50 +1,52 @@
 use crate::auth::Error as AuthError;
-use actix_web::error;
+use actix_web::error::ResponseError;
 use bcrypt::BcryptError;
 use deadpool_postgres::PoolError;
-use thiserror::Error;
+use thiserror::Error as ThisError;
 use tokio_postgres::Error as PostgresError;
 
-#[derive(Error, Debug)]
+#[derive(ThisError, Debug)]
 pub enum Error {
     #[error("An internal error occured. Please try again later.")]
-    PoolError(PoolError),
+    Pool(PoolError),
     #[error("An internal error occured. Please try again later.")]
-    DatabaseError(PostgresError),
+    Database(PostgresError),
     #[error("Failed to hash password.")]
-    BcryptError(BcryptError),
+    Encryption(BcryptError),
     #[error("Invalid username or password.")]
-    InvalidCredentialsError,
+    InvalidCredentials,
     #[error("Not found")]
-    NotFoundError,
+    NotFound,
     #[error("Unauthorized")]
-    UnauthorizedError(AuthError),
+    Unauthorized(AuthError),
     #[error("Internal server error")]
     InternalServerError,
+    #[error("Two factor authentication required")]
+    TwoFactorAuthRequired,
 }
 
 impl From<PoolError> for Error {
     fn from(error: PoolError) -> Self {
-        Self::PoolError(error)
+        Self::Pool(error)
     }
 }
 
 impl From<PostgresError> for Error {
     fn from(error: PostgresError) -> Self {
-        Self::DatabaseError(error)
+        Self::Database(error)
     }
 }
 
 impl From<BcryptError> for Error {
     fn from(error: BcryptError) -> Self {
-        Self::BcryptError(error)
+        Self::Encryption(error)
     }
 }
 
 impl From<AuthError> for Error {
     fn from(error: AuthError) -> Self {
-        Self::UnauthorizedError(error)
+        Self::Unauthorized(error)
     }
 }
 
-impl error::ResponseError for Error {}
+impl ResponseError for Error {}

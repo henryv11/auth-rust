@@ -1,4 +1,4 @@
-use crate::{auth::Auth, database::Pool, error::Error};
+use crate::{auth::Auth, database::Pool, error::Error, request_data::RequestData};
 use actix_web::{
     get, post, put,
     web::{Data, Json, ServiceConfig},
@@ -11,7 +11,7 @@ pub mod service;
 
 pub mod repository;
 
-use service::{login_user, refresh_user_session, register_user, Credentials};
+use service::{handle_login, handle_registration, handle_session_refresh, Credentials};
 
 #[derive(Serialize)]
 pub struct AuthResponse {
@@ -21,11 +21,12 @@ pub struct AuthResponse {
 }
 
 #[put("/")]
-pub async fn registration(
+pub async fn registration_handler(
     pool: Data<Pool>,
     body: Json<Credentials>,
+    request_data: RequestData,
 ) -> Result<HttpResponse, Error> {
-    let (user, session, jwt) = register_user(&pool, &body).await?;
+    let (user, session, jwt) = handle_registration(&pool, &request_data, &body).await?;
     Ok(HttpResponse::Ok().json(AuthResponse {
         user_id: user.id,
         session_token: session.token,
@@ -34,8 +35,12 @@ pub async fn registration(
 }
 
 #[post("/")]
-pub async fn login(pool: Data<Pool>, body: Json<Credentials>) -> Result<HttpResponse, Error> {
-    let (user, session, jwt) = login_user(&pool, &body).await?;
+pub async fn login_handler(
+    pool: Data<Pool>,
+    body: Json<Credentials>,
+    request_data: RequestData,
+) -> Result<HttpResponse, Error> {
+    let (user, session, jwt) = handle_login(&pool, &request_data, &body).await?;
     Ok(HttpResponse::Ok().json(AuthResponse {
         user_id: user.id,
         session_token: session.token,
@@ -44,9 +49,13 @@ pub async fn login(pool: Data<Pool>, body: Json<Credentials>) -> Result<HttpResp
 }
 
 #[get("/")]
-pub async fn refresh(pool: Data<Pool>, auth: Auth) -> Result<HttpResponse, Error> {
+pub async fn refresh_handler(
+    pool: Data<Pool>,
+    auth: Auth,
+    request_data: RequestData,
+) -> Result<HttpResponse, Error> {
     let claims = auth.assert_has_token()?;
-    let (user, session, jwt) = refresh_user_session(&pool, claims).await?;
+    let (user, session, jwt) = handle_session_refresh(&pool, &request_data, claims).await?;
     Ok(HttpResponse::Ok().json(AuthResponse {
         user_id: user.id,
         session_token: session.token,
@@ -55,7 +64,7 @@ pub async fn refresh(pool: Data<Pool>, auth: Auth) -> Result<HttpResponse, Error
 }
 
 pub fn configure(config: &mut ServiceConfig) {
-    config.service(registration);
-    config.service(login);
-    config.service(refresh);
+    config.service(registration_handler);
+    config.service(login_handler);
+    config.service(refresh_handler);
 }
